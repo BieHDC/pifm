@@ -1,5 +1,6 @@
+// To build, just run 'make'
+
 // To run:
-//  g++ -O3 -o pifm pifm.c
 //  ./pifm left_right.wav 103.3 22050 stereo
 //  ./pifm sound.wav
 
@@ -39,23 +40,11 @@
 #define PI 3.14159265
 
 int  mem_fd;
-char *gpio_mem, *gpio_map;
-char *spi0_mem, *spi0_map;
 int volume = 4;
 
 
 // I/O access
-volatile unsigned *gpio;
 volatile unsigned *allof7e;
-
-// GPIO setup macros. Always use INP_GPIO(x) before using OUT_GPIO(x) or SET_GPIO_ALT(x,y)
-#define INP_GPIO(g) *(gpio+((g)/10)) &= ~(7<<(((g)%10)*3))
-#define OUT_GPIO(g) *(gpio+((g)/10)) |=  (1<<(((g)%10)*3))
-#define SET_GPIO_ALT(g,a) *(gpio+(((g)/10))) |= (((a)<=3?(a)+4:(a)==4?3:2)<<(((g)%10)*3))
-
-#define GPIO_SET *(gpio+7)  // sets   bits which are 1 ignores bits which are 0
-#define GPIO_CLR *(gpio+10) // clears bits which are 1 ignores bits which are 0
-#define GPIO_GET *(gpio+13)  // sets   bits which are 1 ignores bits which are 0
 
 #define ACCESS(base) *(volatile int*)((int)allof7e+base-0x7e000000)
 #define SETBIT(base, bit) ACCESS(base) |= 1<<bit
@@ -123,7 +112,7 @@ void setup_fm()
                   PROT_READ|PROT_WRITE,
                   MAP_SHARED,
                   mem_fd,
-                  0x20000000  //base
+                  IOBASE  //base, defined by Makefile
               );
 
     if ((int)allof7e==-1) exit(-1);
@@ -570,7 +559,9 @@ void unSetupDMA(){
     printf("exiting\n");
     struct DMAregs* DMA0 = (struct DMAregs*)&(ACCESS(DMABASE));
     DMA0->CS =1<<31;  // reset dma controller
-    
+
+    ACCESS(CM_GP0CTL) = 0x5a000000; // disable GPCLOCK
+    ACCESS(GPFSEL0) &= ~(7<<12);    // and set GPIO4 normal function
 }
 
 void handSig(int dunno) {
